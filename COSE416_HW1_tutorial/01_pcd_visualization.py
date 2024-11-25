@@ -3,8 +3,9 @@ import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import time
 
-# pcd 파일 불러오기, 필요에 맞게 경로 수정
+# pcd 폴더 불러오기
 folder_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd"
 
 # pcd 파일 불러오고 시각화하는 함수
@@ -21,7 +22,8 @@ def load_and_visualize_pcd(file_path, point_size=1.0):
     vis.run()
     vis.destroy_window()
 
-def load_and_visualize_pcd(folder_path, point_size=1.0, frame_delay=0.2):
+# 영상으로 보기
+def load_and_visualize_pcd_video(folder_path, point_size=1.0, frame_delay=0.2):
     # pcd 파일 로드
     pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
     
@@ -84,8 +86,13 @@ def load_and_inspect_pcd(file_path):
 
 # pcd 시각화 테스트
 
-pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
+# pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
 
-for file_path in pcd_files:
-    load_and_visualize_pcd(file_path, 0.5)
-    load_and_inspect_pcd(file_path)
+# for file_path in pcd_files:
+#     load_and_visualize_pcd(file_path, 0.5)
+#     load_and_inspect_pcd(file_path)
+
+# load_and_visualize_pcd(folder_path, 0.5, 0.2)
+
+load_and_visualize_pcd(r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_000270.pcd", 0.5)
+load_and_inspect_pcd(r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_000270.pcd")
