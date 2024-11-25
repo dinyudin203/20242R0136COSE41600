@@ -2,9 +2,10 @@
 import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 # pcd 파일 불러오기, 필요에 맞게 경로 수정
-file_path = "test_data/1727320101-665925967.pcd"
+folder_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd"
 
 # pcd 파일 불러오고 시각화하는 함수
 def load_and_visualize_pcd(file_path, point_size=1.0):
@@ -19,6 +20,48 @@ def load_and_visualize_pcd(file_path, point_size=1.0):
     vis.get_render_option().point_size = point_size
     vis.run()
     vis.destroy_window()
+
+def load_and_visualize_pcd(folder_path, point_size=1.0, frame_delay=0.2):
+    # pcd 파일 로드
+    pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
+    
+    if not pcd_files:
+        print("No PCD files found in the specified folder.")
+        return
+    
+    print(f"Found {len(pcd_files)} PCD files.")
+
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+
+    print(f"Loading {pcd_files[0]}")
+    pcd = o3d.io.read_point_cloud(pcd_files[0])
+    vis.add_geometry(pcd)
+
+    print(f"Point cloud has {len(pcd.points)} points.")
+
+    for file_path in pcd_files:
+        print(f"Loading {file_path}")
+        
+        new_pcd = o3d.io.read_point_cloud(file_path)
+
+        print(f"Point cloud has {len(new_pcd.points)} points.")
+
+        pcd.points = new_pcd.points
+
+        if new_pcd.has_colors():
+            pcd.colors = new_pcd.colors
+        if new_pcd.has_normals():
+            pcd.normals = new_pcd.normals
+
+        vis.update_geometry(pcd)
+        vis.poll_events()
+        vis.update_renderer()
+
+        time.sleep(frame_delay)
+    
+    vis.destroy_window()
+
 
 
 # PCD 파일 불러오기 및 데이터 확인 함수
@@ -40,5 +83,9 @@ def load_and_inspect_pcd(file_path):
     print("Z coordinate range:", np.min(points[:, 2]), "to", np.max(points[:, 2]))
 
 # pcd 시각화 테스트
-load_and_visualize_pcd(file_path, 0.5)
-load_and_inspect_pcd(file_path)
+
+pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
+
+for file_path in pcd_files:
+    load_and_visualize_pcd(file_path, 0.5)
+    load_and_inspect_pcd(file_path)
