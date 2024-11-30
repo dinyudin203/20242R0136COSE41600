@@ -6,7 +6,7 @@ import os
 import time
 
 # pcd 폴더 불러오기
-folder_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd"
+folder_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\02_straight_duck_walk\pcd"
 
 # pcd 파일 불러오고 시각화하는 함수
 def load_and_visualize_pcd(file_path, point_size=1.0):
@@ -23,7 +23,7 @@ def load_and_visualize_pcd(file_path, point_size=1.0):
     vis.destroy_window()
 
 # 영상으로 보기
-def load_and_visualize_pcd_video(folder_path, point_size=1.0, frame_delay=0.2):
+def load_and_visualize_pcd_video(folder_path, point_size, frame_delay):
     # pcd 파일 로드
     pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
     
@@ -84,6 +84,41 @@ def load_and_inspect_pcd(file_path):
     print("Y coordinate range:", np.min(points[:, 1]), "to", np.max(points[:, 1]))
     print("Z coordinate range:", np.min(points[:, 2]), "to", np.max(points[:, 2]))
 
+def add_color_to_point_cloud(file_path):
+    # PCD 파일 로드
+    pcd = o3d.io.read_point_cloud(file_path)
+    
+    # 점 데이터를 numpy 배열로 변환
+    points = np.asarray(pcd.points)
+    normals = np.asarray(pcd.normals) if pcd.has_normals() else None
+    
+    # 예시 ambient 데이터 생성 (데이터에서 로드해야 함)
+    ambient = np.random.randint(0, 256, size=(len(points),))  # 예제: 랜덤 ambient 데이터
+    
+    # Ambient 값을 Grayscale 색상으로 변환
+    ambient_normalized = ambient / 255.0
+    ambient_colors = np.stack([ambient_normalized]*3, axis=-1)  # RGB로 변환
+    
+    # Normal 값을 RGB 색상으로 변환
+    if normals is not None:
+        normal_colors = (normals + 1) / 2  # [-1, 1] 범위를 [0, 1]로 정규화
+    else:
+        normal_colors = np.zeros_like(points)  # 기본값
+    
+    # Ambient와 Normal 색상을 결합 (가중 평균 사용 가능)
+    final_colors = 0.5 * ambient_colors + 0.5 * normal_colors
+    
+    # Open3D에서 색상 설정
+    pcd.colors = o3d.utility.Vector3dVector(final_colors)
+    
+    # 시각화
+    o3d.visualization.draw_geometries([pcd])
+
+# PCD 파일 경로
+file_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\02_straight_duck_walk\pcd\pcd_000060.pcd"
+
+# add_color_to_point_cloud(file_path)
+
 # pcd 시각화 테스트
 
 # pcd_files = sorted([os.path.join(folder_path, file) for file in os.listdir(folder_path) if file.endswith(".pcd")])
@@ -94,5 +129,6 @@ def load_and_inspect_pcd(file_path):
 
 # load_and_visualize_pcd(folder_path, 0.5, 0.2)
 
-load_and_visualize_pcd(r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_000270.pcd", 0.5)
-load_and_inspect_pcd(r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_000270.pcd")
+# load_and_visualize_pcd_video(folder_path, 0.3, 0.5)
+
+load_and_visualize_pcd(r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_0000180.pcd", 0.5)

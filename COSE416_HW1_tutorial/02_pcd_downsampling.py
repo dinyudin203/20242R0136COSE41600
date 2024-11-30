@@ -3,7 +3,9 @@ import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
 
-# pcd 파일 불러오기, 필요에 맞게 경로 수정
+# pcd 폴더 불러오기
+folder_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd"
+
 file_path = "test_data/1727320101-665925967.pcd"
 # PCD 파일 읽기
 original_pcd = o3d.io.read_point_cloud(file_path)

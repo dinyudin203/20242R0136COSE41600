@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # pcd 파일 불러오기, 필요에 맞게 경로 수정
-file_path = "test_data/1727320101-665925967.pcd"
+file_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_000005.pcd"
 # PCD 파일 읽기
 original_pcd = o3d.io.read_point_cloud(file_path)
 
@@ -72,7 +72,6 @@ for i in range(max_label + 1):
                     bbox = cluster_pcd.get_axis_aligned_bounding_box()
                     bbox.color = (1, 0, 0) 
                     bboxes_1234.append(bbox)
-
 
 # 포인트 클라우드 및 바운딩 박스를 시각화하는 함수
 def visualize_with_bounding_boxes(pcd, bounding_boxes, window_name="Filtered Clusters and Bounding Boxes", point_size=1.0):

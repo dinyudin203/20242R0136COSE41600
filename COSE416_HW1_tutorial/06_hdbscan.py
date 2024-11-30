@@ -1,97 +1,131 @@
-# 시각화에 필요한 라이브러리 불러오기
+import cv2
 import open3d as o3d
 import numpy as np
+import os
 import matplotlib.pyplot as plt
-import hdbscan 
-import time
 
-# pcd 파일 불러오기, 필요에 맞게 경로 수정
-file_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd\pcd_000120.pcd"
-# PCD 파일 읽기
-original_pcd = o3d.io.read_point_cloud(file_path)
+# 설정값
+video_output_path = "output_video.mp4"
+voxel_size = 0.2
+min_points_in_cluster = 5
+max_points_in_cluster = 40
+min_z_value = -1.5
+max_z_value = 2.5
+min_height = 0.5
+max_height = 2.0
+max_distance = 30.0
+movement_threshold = 0.1
+# 파일 경로 설정
+folder_path = r"E:\Downloads\COSE416_HW1_tutorial\COSE416_HW1_data_v1\data\01_straight_walk\pcd"
+file_list = sorted([os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith(".pcd")])
 
-# Voxel Downsampling 수행
-voxel_size = 0.2  # 필요에 따라 voxel 크기를 조정하세요.
-downsample_pcd = original_pcd.voxel_down_sample(voxel_size=voxel_size)
+# 클러스터 중심점 계산 함수
+def get_cluster_centers(pcd, labels, max_label):
+    centers = []
+    for i in range(max_label + 1):
+        cluster_indices = np.where(labels == i)[0]
+        if len(cluster_indices) >= min_points_in_cluster:
+            cluster_pcd = pcd.select_by_index(cluster_indices)
+            points = np.asarray(cluster_pcd.points)
+            centers.append(np.mean(points, axis=0))  # 클러스터 중심점 계산
+    return np.array(centers)
 
-# Radius Outlier Removal (ROR) 적용
-cl, ind = downsample_pcd.remove_radius_outlier(nb_points=6, radius=1.2)
-ror_pcd = downsample_pcd.select_by_index(ind)
+# Open3D 시각화 및 이미지 저장
+image_dir = "frames"
+os.makedirs(image_dir, exist_ok=True)
+prev_centers = None
 
-# RANSAC을 사용하여 평면 추정
-plane_model, inliers = ror_pcd.segment_plane(distance_threshold=0.1,
-                                             ransac_n=3,
-                                             num_iterations=2000)
+for file_idx, file_path in enumerate(file_list):
+    # PCD 파일 읽기 및 Downsampling
+    pcd = o3d.io.read_point_cloud(file_path)
+    pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
+    
+    # ROR 적용
+    cl, ind = pcd.remove_radius_outlier(nb_points=6, radius=1.2)
+    pcd = pcd.select_by_index(ind)
+    
+    # 평면 제거
+    plane_model, inliers = pcd.segment_plane(distance_threshold=0.1, ransac_n=3, num_iterations=2000)
+    pcd = pcd.select_by_index(inliers, invert=True)
+    
+    # DBSCAN 클러스터링
+    labels = np.array(pcd.cluster_dbscan(eps=0.3, min_points=10, print_progress=False))
+    max_label = labels.max()
+    
+    # 모든 포인트를 검은색으로 초기화
+    black_color = np.zeros((len(pcd.points), 3))
+    pcd.colors = o3d.utility.Vector3dVector(black_color)
 
-# 도로에 속하지 않는 포인트 (outliers) 추출
-final_point = ror_pcd.select_by_index(inliers, invert=True)
-
-# 포인트 클라우드를 NumPy 배열로 변환
-points = np.asarray(final_point.points)
-
-# HDBSCAN 클러스터링 적용
-t3 = time.time()
-clusterer = hdbscan.HDBSCAN(min_cluster_size=10, gen_min_span_tree=True)
-clusterer.fit(points)
-labels = clusterer.labels_
-t4 = time.time()
-print(f"Time to cluster outliers using HDBSCAN: {t4 - t3:.2f} seconds")
-
-max_label = labels.max()
-print(f"Point cloud has {max_label + 1} clusters (using HDBSCAN)")
-
-colors = plt.get_cmap("tab20")(labels / (max_label + 1 if max_label > 0 else 1))
-colors[labels < 0] = 0  # 노이즈는 검정색으로 표시
-final_point.colors = o3d.utility.Vector3dVector(colors[:, :3])
-
-# 각 클러스터를 색으로 표시
-max_label = labels.max()
-print(f"point cloud has {max_label + 1} clusters")
-
-
-# 필터링 기준 1. 클러스터 내 최대 최소 포인트 수
-min_points_in_cluster = 5   # 클러스터 내 최소 포인트 수
-max_points_in_cluster = 40  # 클러스터 내 최대 포인트 수
-
-# 필터링 기준 2. 클러스터 내 최소 최대 Z값
-min_z_value = -1.5    # 클러스터 내 최소 Z값
-max_z_value = 2.5   # 클러스터 내 최대 Z값
-
-# 필터링 기준 3. 클러스터 내 최소 최대 Z값 차이
-min_height = 0.5   # Z값 차이의 최소값
-max_height = 2.0   # Z값 차이의 최대값
-
-max_distance = 30.0  # 원점으로부터의 최대 거리
-
-# 1번, 2번, 3번 조건을 모두 만족하는 클러스터 필터링 및 바운딩 박스 생성
-bboxes_hdbscan = []
-for i in range(max_label + 1):
-    cluster_indices = np.where(labels == i)[0]
-    if min_points_in_cluster <= len(cluster_indices) <= max_points_in_cluster:
-        cluster_pcd = final_point.select_by_index(cluster_indices)
-        points = np.asarray(cluster_pcd.points)
-        z_values = points[:, 2]  # Z값 추출
-        z_min = z_values.min()
-        z_max = z_values.max()
-        if min_z_value <= z_min and z_max <= max_z_value:
-            height_diff = z_max - z_min
-            if min_height <= height_diff <= max_height:
-                distances = np.linalg.norm(points, axis=1)
-                if distances.max() <= max_distance:
-                    bbox = cluster_pcd.get_axis_aligned_bounding_box()
-                    bbox.color = (0, 1, 0)  # HDBSCAN 바운딩 박스는 초록색으로 설정
-                    bboxes_hdbscan.append(bbox)
-
-# 포인트 클라우드 및 바운딩 박스를 시각화하는 함수
-def visualize_with_bounding_boxes(pcd, bounding_boxes, window_name="Filtered Clusters and Bounding Boxes", point_size=1.0):
+    # 현재 클러스터 중심 계산
+    centers = get_cluster_centers(pcd, labels, max_label)
+    
+    current_bboxes = []
+    if file_idx == 0:
+        for i in range(max_label + 1):
+            cluster_indices = np.where(labels == i)[0]
+            if min_points_in_cluster <= len(cluster_indices) <= max_points_in_cluster:
+                cluster_pcd = pcd.select_by_index(cluster_indices)
+                points = np.asarray(cluster_pcd.points)
+                z_values = points[:, 2]
+                z_min, z_max = z_values.min(), z_values.max()
+                if min_z_value <= z_min and z_max <= max_z_value:
+                    height_diff = z_max - z_min
+                    if min_height <= height_diff <= max_height:
+                        if np.linalg.norm(points, axis=1).max() <= max_distance:
+                            bbox = cluster_pcd.get_axis_aligned_bounding_box()
+                            bbox.color = (1, 0, 0)
+                            current_bboxes.append(bbox)
+                            for idx in cluster_indices:
+                                pcd.colors[idx] = [1.0, 0.0, 0.0]
+    else:
+        if prev_centers is not None:
+            for i, center in enumerate(centers):
+                if prev_centers.shape == 0 or centers.shape == 0:
+                    continue
+                distances = np.linalg.norm(prev_centers[:len(centers)] - center, axis=1)
+                if distances.min() < movement_threshold:
+                    cluster_indices = np.where(labels == i)[0]
+                    if len(cluster_indices) < min_points_in_cluster:
+                        continue
+                    cluster_pcd = pcd.select_by_index(cluster_indices)
+                    points = np.asarray(cluster_pcd.points)
+                    z_values = points[:, 2]
+                    z_min, z_max = z_values.min(), z_values.max()
+                    if min_z_value <= z_min and z_max <= max_z_value:
+                        height_diff = z_max - z_min
+                        if min_height <= height_diff <= max_height:
+                            if np.linalg.norm(points, axis=1).max() <= max_distance:
+                                bbox = cluster_pcd.get_axis_aligned_bounding_box()
+                                bbox.color = (0, 1, 0)
+                                current_bboxes.append(bbox)
+                                for idx in cluster_indices:
+                                    pcd.colors[idx] = [0.0, 1.0, 0.0]
+    
+    prev_centers = centers
+    
+    # Open3D 시각화
     vis = o3d.visualization.Visualizer()
-    vis.create_window(window_name=window_name)
+    vis.create_window(visible=False)  # 창을 숨김
     vis.add_geometry(pcd)
-    for bbox in bounding_boxes:
+    for bbox in current_bboxes:
         vis.add_geometry(bbox)
-    vis.get_render_option().point_size = point_size
-    vis.run()
+    vis.poll_events()
+    vis.update_renderer()
+    
+    # 이미지 저장
+    image_path = os.path.join(image_dir, f"frame_{file_idx:04d}.png")
+    vis.capture_screen_image(image_path)
     vis.destroy_window()
 
-# 시각화 (포인트 크기를 원하는 크기로 조절 가능)
-visualize_with_bounding_boxes(final_point, bboxes_hdbscan, point_size=2.0)
+# OpenCV로 동영상 생성
+frame_paths = sorted([os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith(".png")])
+frame = cv2.imread(frame_paths[0])
+height, width, _ = frame.shape
+video_writer = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*"mp4v"), 10, (width, height))
+
+for frame_path in frame_paths:
+    frame = cv2.imread(frame_path)
+    video_writer.write(frame)
+
+video_writer.release()
+print(f"Video saved to {video_output_path}")
