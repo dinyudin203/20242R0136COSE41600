@@ -9,14 +9,14 @@ import cv2
 folder_paths = [
     'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/01_straight_walk/pcd',
     'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/02_straight_duck_walk/pcd',
-    'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/03_straight_walk/pcd',
+    'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/03_straight_crawl/pcd',
     'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/04_zigzag_walk/pcd',
     'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/05_straight_duck_walk/pcd',
     'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/06_straight_crawl/pcd',
     'E:/Downloads/COSE416_HW1_tutorial/COSE416_HW1_data_v1/data/07_straight_walk/pcd',
 ]
 output_folder = 'E:/Downloads/COSE416_HW1_tutorial/output'
-output_file = 'E:/Downloads/COSE416_HW1_tutorial/output/02_straight_walk.mp4'
+output_file = 'E:/Downloads/COSE416_HW1_tutorial/output/07_straight_walk.mp4'
 os.makedirs(output_folder, exist_ok=True)
 
 frame_width = 800
@@ -30,17 +30,17 @@ point_size = 0.5
 frame_delay = 0.3
 
 # 첫 번째 폴더의 PCD 파일들
-folder = folder_paths[1]
+folder = folder_paths[6]
 file_paths = sorted([os.path.join(folder, f) for f in os.listdir(folder) if f.endswith(".pcd")])
 
 min_z_value = -1.5
 max_z_value = 2.5
 min_height = 0.5
-max_height = 1.5
+max_height = 1.3
 
 max_distance = 30.0
 
-min_width = 0.08
+min_width = 0.2
 max_width = 0.5
 
 min_volume = 0.1
@@ -102,12 +102,12 @@ previous_centers = {}
 
 
 with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Debug) as cm:
-        labels = np.array(downsample_pcd.cluster_dbscan(eps=0.8, min_points=8, print_progress=True))
+        labels = np.array(downsample_pcd.cluster_dbscan(eps=1.0, min_points=6, print_progress=True))
 
 
 for i in range(labels.max() + 1):
     cluster_indices = np.where(labels == i)[0]
-    if len(cluster_indices) <= max_points_in_cluster:
+    if len(cluster_indices) >= 4:
         cluster_pcd = downsample_pcd.select_by_index(cluster_indices)
         points = np.asarray(cluster_pcd.points)
         z_values = points[:, 2]
@@ -118,16 +118,18 @@ for i in range(labels.max() + 1):
             x_width = points[:, 0].max() - points[:, 0].min()
             y_width = points[:, 1].max() - points[:, 1].min()
             if min_width <= x_width <= max_width and min_width <= y_width <= max_width:
-                center = calculate_cluster_center(cluster_pcd)
-                try:
-                    # Bounding box 생성
-                    bbox = cluster_pcd.get_oriented_bounding_box()
-                    bbox.color = (1, 0, 0)
-                    bboxes.append(bbox)
-                    vis.add_geometry(bbox)
-                except RuntimeError as e:
-                    print(f"Bounding box creation failed for cluster {i}: {e}")
-                previous_centers[i] = center
+                aspect_ratio = height_diff/max(x_width, y_width)
+                if 0.3 <= aspect_ratio <= 1.5:
+                    center = calculate_cluster_center(cluster_pcd)
+                    try:
+                        # Bounding box 생성
+                        bbox = cluster_pcd.get_oriented_bounding_box()
+                        bbox.color = (1, 0, 0)
+                        bboxes.append(bbox)
+                        vis.add_geometry(bbox)
+                    except RuntimeError as e:
+                        print(f"Bounding box creation failed for cluster {i}: {e}")
+                    previous_centers[i] = center
 
 # 사용자가 카메라를 조정하도록 대기
 print("Adjust the camera view. Close the window to continue.")
